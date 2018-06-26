@@ -1,4 +1,4 @@
-# CircularTarget
+# Circular Target Detection
 Detecting circular target via non-linear minimization method
 
 # General Background/Research Purpose
@@ -44,61 +44,13 @@ We defined CombineAllLastLook function to aggregate the last look from 100 log f
 ![LastLookPlot](png/LastLookPlot.png?raw=true "LastLookPlot")
 
 Since robot can only 'see' things with 2 meter circle range, in the following section, we want to find out segments where robot 'see' something which might be interesting and then judge if it is the circular target we are interested. We defined three main functions (getSegments, getWrappedSegments_YG, seperateSegments_YG) to do this.
-```{r}
-getSegments=
-  function(range, threshold = 2){
-    # range: a list with 360 in length
-    rl = rle(range < threshold)
-    
-    cursor = 1
-    ans = list()
-    
-    for(i in seq(along = rl$lengths)) {
-      if(!rl$values[i]) {
-        cursor = cursor + rl$lengths[i]
-        next
-      }
-      ans[[length(ans) + 1]] = seq(cursor, length = rl$lengths[i])
-      cursor = cursor + rl$lengths[i]
-    }
-    ans}
-
-getWrappedSegments_YG =
-  function(range, threshold = 2){
-    # the same input as getSegments
-    segments = getSegments(range, threshold)
-    if(length(segments) >= 2) {
-      s_first = segments[[1]]
-      s_last = segments[[length(segments)]]
-      if(s_first[1] == 1 && s_last[length(s_last)] == 360) {
-        segments[[1]] = c(s_last, s_first)
-        segments = segments[-length(segments)]
-      }
-    }
-    segments}
-
-seperateSegments_YG<-function(idx, x, y, threshold=0.15){
-  # seperate segments if the distance between the two points exceeds 0.15 threshold
-  xdiff<-diff(x[idx])
-  ydiff<-diff(y[idx])
-  distance<-sqrt((xdiff)^2+(ydiff)^2)
-  if (any(distance>threshold)){
-    i = which(distance > threshold)[1]
-    list(idx[1:(i-1)],idx[(i+1):length(idx)])
-  }
-  else {list(idx)}
-}
-```
 
 After taking out potential segments, we need to develop a method which can judge if this segment correspond to a 0.5 meter circular target. Function circle.fit takes three inputs: p (a list which contains initial guess of the radius, x and y position of the circular target), x (a list which contains x axis information from what the robot 'sees'), y (a list which contains y axis information from what the robot 'sees'). It summarise the sum of squares between the two radii.
-
-$$\sqrt{((x_i-x_0)^2+(y_i-y_0)^2))-r)}$$
-similar to fitting a regression line
-
 
 In section 7, I define function robotEva_YG() to process each row in LastLook. This function loops over 100 last look from logfiles, extracts the segments and use circle.fit() and nlm() function to determine which segment apprears to be part of the target circle. For each segment, we also evaluate three additional criteria that actually determine whether the segment seems to be the circular target we were expected. 
 
 Firstly, the length of the segment should be greater than 3 (current default). If there is too little points present in one segment, it is not accurate to judge if it is the circular target or some other obstacles. Secondly, as everything else in real world, the radii of the circular target we were searching for is not 0.5 meter in sharp. We set a range (0.475 to 0.7 meters) to this. If it is outside of the range, we assume it is something else. Lastly, we use the final value of the sum of squares function that we are trying to minimize to measure the goodness of fit. We compare the goodness of fit to the threshold with
+
 (result$minimum/length(segment))>error threshold (0.01)
 
 With the results saved in CircleDetection, we know that out of the 100 last look we took from log file, 37 of them encountered circurlar target in the end. We randomly selected 9 out of the 37 looks and plotted below.
