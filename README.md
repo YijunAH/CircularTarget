@@ -11,11 +11,13 @@ In general, the raw dataset contains log files from 100 different experiments.
 
 The target which the robot was searching for was a circular target with 0.5 m radius.
 
-At each position, the robot recorded tiem time, robot position (x, y) and what it 'sees'. Robot can detects/'sees' objects within 2 meter circle.
+At each position, the robot recorded time, robot position (x, y) and what it 'sees'. Robot can detects/'sees' objects within 2 meter circle.
 
 In each log file, it includes every location the robot went and the signal collected from nearby envirmoment.
 
 If the robot finds the circular target/or at least think it finds the target, it will stop. If not, the robot will keep searching until experiment time run out (set to be 30 min)
+
+
 
 # Data Analysis Method
 
