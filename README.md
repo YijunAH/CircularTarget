@@ -1,17 +1,6 @@
 # CircularTarget
 Detecting circular target via non-linear minimization method
 
----
-title: "Detecting Circular Target via Non-Linear Minimization Method"
-output:
-  html_document:
-    code_folding: show
-    toc: yes
-    toc_float: yes
----
-
-Detecting circular target with log files collected from automated robots
-
 # General Background/Research Purpose
 
 In this study, we explored data collected by automated robots searching for a circular target (around 0.5 meter) in a 15 meter multiply by 8 meter rectangular field which contains other obstacles. With optimization, we believe this method can be generalized into other feature recognition area for imaging process.
@@ -28,55 +17,15 @@ In each log file, it includes every location the robot went and the signal colle
 
 If the robot finds the circular target/or at least think it finds the target, it will stop. If not, the robot will keep searching until experiment time run out (set to be 30 min)
 
-```{r}
-setwd('~/Documents/DataScience/R/CaseStudyR/Chapter4CircularTarget/')
-
-knitr::include_graphics("minefield.png")
-```
-
 # Data Analysis Method
 
 I divided my study into 7 sections in total.
 
 In the first section, I loaded all the required libraries and 100 log files and briefly looked at their sizes.
 
-```{r}
-### 1. Load libraries and log file size
-library(dplyr)
-library(profvis)
-library(ggplot2)
-library(RSQLite)
-library(gridExtra)
-
-ff <- list.files(path="~/Documents/DataScience/R/CaseStudyR/Chapter4CircularTarget/", pattern = "JRSPdata.*\\.log")
-
-# ff
-# 100 log files in total
-
-# datainfo<- file.info(ff)
-# summary(datainfo$size/1024^2)
-
-# plot(density(datainfo$size/1024^2), xlab = "megabytes--size/(1024^2)", ylab = "Density")
-
-# quantile(info$size/1024^2, seq(.9, 1, by = .01))
-```
-
 In section 2, I defined two functions read_logfile_v2 to clean each log file and convert it into a dataframe and then use PreprocessFileCacheToSQL function to save them into SQL database. In the end, all the data was saved into logs (list with 100 elements).
 
 ```{r}
-# testlines<-readLines('JRSPdata_2010_03_10_12_12_31.log')
-# testlines[1:10]
-# testlines[50:60]
-# Notice: each line has different length
-
-# take line 99 and 100 as examples
-# tokens <- strsplit(testlines[99], "[[:space:]]+") # robot position
-# tokens[1]
-# tokens[[1]][4]
-# tokens_next <- strsplit(testlines[100], "[[:space:]]+") # a look
-# tokens_next[1]
-# tokens_next[[1]][6]
-
 read_Logfile_v2 <-
   function(filename = "JRSPdata_2010_03_10_12_12_31.log")
   {
@@ -127,187 +76,17 @@ When looking at the way of robot moves, we found that robot is moving small dist
 
 We also see bimodal distribution of the velocity (moving speed of robot) may be because of the way which the robot was designed initially. It is moving at either fairy slow speed (less than 0.1 m/s) or much faster speed (0.8 m/s)
 
-```{r include=FALSE}
-### 3. Exploring 100 log files
-
-# initialtime<-sapply(logs, function(x) x$time[1])
-# initialtime
-# range(initialtime)
-# table(initialtime)
-# when do they start? 99 of 100 starts at 0.2s. One starts at 0.4s
-
-# duration <- sapply(logs, function(x) x$time[nrow(x)] - x$time[1])
-# duration
-# range(duration)
-# 33.8 to 1799.7 s
-# sort(duration)
-# plot(density(duration), xlim = c(0, 30*60))
-# plot(density(duration))
-# 30 mins limit
-
-# where do robot go? in what range?
-# sapply(logs, function(logfiles) range(logfiles$x))
-# sapply(logs, function(logfiles) range(logfiles$y))
-# range(sapply(logs, function(logfiles) range(logfiles$x)))
-# range(sapply(logs, function(logfiles) range(logfiles$y)))
-# x: -14.910  14.546
-# y: -7.713  7.316
-
-# sapply(logs, function(logfiles) all( diff(logfiles$time) > 0 ))
-# table(sapply(logs, function(logfiles) all( diff(logfiles$time) > 0 )))
-# the observations in log files are ordered
-
-# do the log files order by time?
-# time_diff<-lapply(logs, function(logfiles) diff(logfiles$time))
-# time_diff[1]
-# time_deltas <- unlist(lapply(logs, function(logfiles) diff(logfiles$time)))
-# time_deltas[100:200]
-# summary(time_deltas)
-# quantile(time_deltas, seq(.99, 1, length = 11))
-
-# which.max(time_deltas)
-# JRSPdata_2010_03_10_12_39_46.log2167
-# 49605
-
-# how many records(rows) are in files?
-# summary(sapply(logs, nrow))
-# summary(sapply(logs, function(logfiles) nrow(logfiles)))
-
-# the change of x and y position
-# delta.x <- unlist(lapply(logs, function(logfiles) diff(logfiles$x)))
-# delta.y <- unlist(lapply(logs, function(logfiles) diff(logfiles$y)))
-# delta_xy<-as.data.frame(cbind(delta.x, delta.y))
-# colnames(delta_xy)<-c('x', 'y')
-# summary(delta_xy)
-
-# ggplot(aes(x), data=delta_xy)+geom_density() + 
-#   geom_density(aes(y), data=delta_xy, color='red')
-# black is delta_x, red is delta_y
-# most changes are close to 0, so the robot is moving small distances
-# the extreme changes in y direction (in red) are smaller than those in x (in black)
-
-# sort(table(delta.x))
-# length(sort(table(delta.x)))
-# tail(sort(table(delta.x)))
-# tail(sort(table(delta.y)))
-
-# how fast do the robot move?
-# calSpeed<-function(logfile){
-#   distance<-sqrt(diff(logfile$x)^2+diff(logfile$y)^2)
-#   velocity<-distance/(diff(logfile$time))
-#   velocity
-# }
-# velocity =lapply(logs, calSpeed)
-# quantile(unlist(velocity), seq(0, 1, length = 5))
-
-# plot(density(unlist(velocity)), xlab = "speed: meters/second", xaxs = "i",
-#      xlim = c(0, max(unlist(velocity))))
-# bimodal distribution of the velocity
-
-```
 
 In the next section, I visualize robot moving path and also robot last 'look'. The figure below is the moving path of robot made with 100 log files.
 
 Looking at 100 robot moving trace plots below, we found out that the robot always started from bottom left corner indicating with a green dot. The time it takes to find the circular target corresponds to the shift in colors from green to red. The final location where the circular target was found/the robot stopped is marked with a blue x.
 
-```{r include=FALSE}
-### 4. Visualizing robot moving path and robot last look
-# set.seed(2500)
-# nine_random <- sample(1:100, 9)
-# nine_random
 
-# P1<-ggplot(aes(x=x, y=y), data=logs[[87]]) + geom_point(color='blue')+ theme_classic()
-# P2<-ggplot(aes(x=x, y=y), data=logs[[100]]) + geom_point(color='blue')+ theme_classic()
-# P3<-ggplot(aes(x=x, y=y), data=logs[[94]]) + geom_point(color='blue')+ theme_classic()
-# P4<-ggplot(aes(x=x, y=y), data=logs[[51]]) + geom_point(color='blue')+ theme_classic()
-# P5<-ggplot(aes(x=x, y=y), data=logs[[92]]) + geom_point(color='blue')+ theme_classic()
-# P6<-ggplot(aes(x=x, y=y), data=logs[[13]]) + geom_point(color='blue')+ theme_classic()
-# P7<-ggplot(aes(x=x, y=y), data=logs[[95]]) + geom_point(color='blue')+ theme_classic()
-# P8<-ggplot(aes(x=x, y=y), data=logs[[27]]) + geom_point(color='blue')+ theme_classic()
-# P9<-ggplot(aes(x=x, y=y), data=logs[[44]]) + geom_point(color='blue')+ theme_classic()
-# RobotMovePlot<-grid.arrange(P1, P2, P3, P4, P5, P6, P7, P8, P9, ncol=3)
-# ggsave('RobotMovePlot.png', RobotMovePlot, width = 9, height = 9)
 
-```
-
-```{r}
-makeColorRamp =
-  function(n)
-  {
-    s = (1:n)/n
-    zero = rep(0, n)
-    rgb(s, (1-s), zero)
-  }
-# RGB: This function creates colors corresponding to the given intensities (between 0 and max) of the red, green and blue primaries.
-
-plot.RobotLog_time =
-  function(x, y, col = makeColorRamp(1800), ...)
-  {
-    plot(y~x, x,type="p",pch=20,col=col,...)
-    points(x$x[c(1, nrow(x))], x$y[c(1, nrow(x))], pch = c("O", "+"), 
-           col = c("green", "blue"))
-  }
-
-par(mfrow = c(10, 10), mar = rep(0, 4), pty = 's')
-
-invisible(lapply(logs, plot.RobotLog_time,
-                 xlim = c(-16, 16), ylim = c(-8, 8),
-                 axes = FALSE))
-# invisible: Return a (temporarily) invisible copy of an object.
-
-# dev.copy(png,'RobotMovingPath.png')
-# dev.off()
-```
 
 We defined CombineAllLastLook function to aggregate the last look from 100 log files into a single dataframe called 'LastLook'. We randomly draw 9 out of 100 look from the LastLook and plotted them below. The red circle is the 2 meter range which the robot can detect. And the black line describe what the robot acutally saw from the signal collected. Just looking at these 9 plots, we saw that around 50% of the time the robot did not find the circular target at the end of the measurement.
 
-```{r}
-CombineAllLastLook<-function(logs){
-  # this will return a dataframe with last look from 100 logfiles
-  lastlook_List<-NULL
-  i=1
-  for (logfiles in logs){
-    lastlook_List[[i]]<-logfiles[nrow(logfiles), ]
-    i=i+1
-  }
-  lastlook_df<-as.data.frame(do.call('rbind',lastlook_List),stringsAsFactors=FALSE)
-  names(lastlook_df) = c("time", "x", "y", sprintf("range%d", 1:361))
-  lastlook_df
-}
 
-LastLook<-CombineAllLastLook(logs)
-# save all the last look in each log file into a seperate dataframe
-
-plotLastLook_ggplot <- function(look1, ...)
-{
-  x=look1$x
-  y=look1$y
-  theta = seq(0, 2*pi, length = 360) - pi/2
-  look1Signal<-as.numeric(look1[-c(1:3, 364)])
-  circlex=x+2*cos(theta)
-  circley=y+2*sin(theta)
-  x1 = x + look1Signal*cos(theta)
-  y1 = y + look1Signal*sin(theta)
-  look1_df<-as.data.frame(cbind(circlex, circley, x1, y1))
-  circleplot=ggplot(data=look1_df) + theme_bw() +
-    geom_point(aes(x=circlex, y= circley), color='red') + geom_point(aes(x=x1, y=y1), color='black') + coord_fixed(ratio=1)
-  return(circleplot)
-}
-
-LastLook87<-plotLastLook_ggplot(LastLook[87, ])
-LastLook100<-plotLastLook_ggplot(LastLook[100, ])
-LastLook94<-plotLastLook_ggplot(LastLook[94, ])
-LastLook51<-plotLastLook_ggplot(LastLook[51, ])
-LastLook92<-plotLastLook_ggplot(LastLook[92, ])
-LastLook13<-plotLastLook_ggplot(LastLook[13, ])
-LastLook95<-plotLastLook_ggplot(LastLook[95, ])
-LastLook27<-plotLastLook_ggplot(LastLook[27, ])
-LastLook44<-plotLastLook_ggplot(LastLook[44, ])
-
-LastLookPlot<-grid.arrange(LastLook87, LastLook100, LastLook94, LastLook51, 
-         LastLook92, LastLook13, LastLook95,LastLook27, LastLook44, ncol=3)
-# ggsave('LastLookPlot.png',LastLookPlot, width = 9, height = 9)
-```
 
 
 Since robot can only 'see' things with 2 meter circle range, in the following section, we want to find out segments where robot 'see' something which might be interesting and then judge if it is the circular target we are interested. We defined three main functions (getSegments, getWrappedSegments_YG, seperateSegments_YG) to do this.
