@@ -178,21 +178,7 @@ After taking out potential segments, we need to develop a method which can judge
 $$\sqrt{((x_i-x_0)^2+(y_i-y_0)^2))-r)}$$
 similar to fitting a regression line
 
-```{r}
-### 6. Does one perticular segment correspond to a circular target?
 
-circle.fit<-
-  function(p, x, y)
-  {
-    # p: a list containing three elements
-    # x,y: two seperate lists containing x, y position info
-    x0 <- p[1] # initial guess x
-    y0 <- p[2] # initial guess y
-    r <- p[3] # radius of target
-    actual.r <- sqrt((x - x0)^2 + (y - y0)^2)
-    sum((r - actual.r)^2)
-  }
-```
 
 In section 7, I define function robotEva_YG() to process each row in LastLook. This function loops over 100 last look from logfiles, extracts the segments and use circle.fit() and nlm() function to determine which segment apprears to be part of the target circle. For each segment, we also evaluate three additional criteria that actually determine whether the segment seems to be the circular target we were expected. 
 
@@ -201,79 +187,7 @@ Firstly, the length of the segment should be greater than 3 (current default). I
 
 With the results saved in CircleDetection, we know that out of the 100 last look we took from log file, 37 of them encountered circurlar target in the end. We randomly selected 9 out of the 37 looks and plotted below.
 
-```{r}
-### 7. Testing the classifier built for detecting circle with the LastLook dataframe
 
-robotEva_YG<-function(LastLook, min.length = 3, max.ss.ratio = 0.01,
-                      min.radius = .5, max.radius = 2, threshold = 2){
-  conclusion<-NULL
-  currentLine<-NULL
-  theta = seq(0, 2*pi, length = 360)
-  for (i in 1:nrow(LastLook)){
-    currentLine<-LastLook[i,]
-    x0<-currentLine$x
-    y0<-currentLine$y
-    range<-as.numeric(currentLine[-c(1:3, 364)])
-
-    pos_x = x0 + cos(theta)*range
-    pos_y = y0 + sin(theta)*range
-    
-    segs<-getWrappedSegments_YG(range, threshold = 2)
-    
-    for (seg in segs){
-      newsegs<-seperateSegments_YG(seg,pos_x, pos_x,threshold=0.15)
-      for (s in newsegs){
-        if ((length(s))<min.length)
-          next
-        xi<-pos_x[s]
-        yi<-pos_y[s]
-        # temp_result<-NA
-        temp_result=nlm(circle.fit, c(mean(xi), mean(yi), 0.5), x=xi, y=yi)
-        if ( (temp_result$code)>3 || (temp_result$minimum/length(s))>max.ss.ratio || (temp_result$estimate[3]) < min.radius || (temp_result$estimate[3]) > max.radius)
-          next
-        conclusion[[i]]<- temp_result
-      }
-    }
-  }
-  conclusion
-}
-
-CircleDetection<-robotEva_YG(LastLook, min.length = 3, max.ss.ratio = 0.01,
-                        min.radius = .475, max.radius = .7, threshold = 2)
-
-# NoCircle<-sapply(CircleDetection, function(o) is.null(o))
-
-# which(NoCircle)
-# length(which(NoCircle))
-# 63 out of 100 do not see the circle target in the last
-
-# CircleErrorXYR<-sapply(CircleDetection, function(o) c(o$minimum,  o$estimate[1], o$estimate[2], o$estimate[3]))
-# CircleErrorXYR<-as.data.frame(do.call(rbind, CircleErrorXYR))
-# colnames(CircleErrorXYR)<-c('error', 'estimate_x', 'estimate_y', 'r')
-
-# range(CircleErrorXYR$estimate_x)
-# range(CircleErrorXYR$estimate_y)
-
-hasCircleTF<-sapply(CircleDetection, function(o) !is.null(o))
-# hasCircleTF
-LastLook$hasCircle<-hasCircleTF
-LastLookwithCircle<-subset(LastLook, LastLook$hasCircle=='TRUE')
-LastLookwithCircle$hasCircle<-NULL
-# create a seperate df which only store the ones see circle target in the end of the detection
-
-Circle1<-plotLastLook_ggplot(LastLookwithCircle[1, ])
-Circle5<-plotLastLook_ggplot(LastLookwithCircle[5, ])
-Circle9<-plotLastLook_ggplot(LastLookwithCircle[9, ])
-Circle13<-plotLastLook_ggplot(LastLookwithCircle[13, ])
-Circle17<-plotLastLook_ggplot(LastLookwithCircle[17, ])
-Circle21<-plotLastLook_ggplot(LastLookwithCircle[21, ])
-Circle25<-plotLastLook_ggplot(LastLookwithCircle[25, ])
-Circle29<-plotLastLook_ggplot(LastLookwithCircle[29, ])
-Circle33<-plotLastLook_ggplot(LastLookwithCircle[33, ])
-plotswithCircle<-grid.arrange(Circle1, Circle5, Circle9, Circle13, Circle17, 
-                              Circle21, Circle25, Circle29, Circle33, ncol=3)
-ggsave('plotswithCircle.png',plotswithCircle, width = 9, height = 9)
-```
 
 # Conclusions
 
